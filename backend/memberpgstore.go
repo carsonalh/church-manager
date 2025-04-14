@@ -1,71 +1,43 @@
 package main
 
-// An in-memory store for now
+import (
+	"github.com/jackc/pgx/v5"
+)
+
 type MemberPgStore struct {
-	members []Member
+	conn *pgx.Conn
 }
 
-func CreateMemberPgStore() *MemberPgStore {
-	return &MemberPgStore{members: make([]Member, 0)}
+type MemberPgStoreErrorKind int
+
+const (
+	PreconditionFailedError MemberPgStoreErrorKind = iota + 1
+	DatabaseError
+)
+
+func CreateMemberPgStore(conn *pgx.Conn) *MemberPgStore {
+	return &MemberPgStore{conn}
 }
 
-func (store *MemberPgStore) Save(member *Member) error {
-	if member.Id != nil {
-		for i, m := range store.members {
-			if *m.Id == *member.Id {
-				store.members[i] = *member
-				break
-			}
-		}
-	} else {
-		var nextId *uint64
-		maxId := uint64(0)
-
-		for _, m := range store.members {
-			maxId = max(maxId, *m.Id)
-		}
-
-		nextId = new(uint64)
-		*nextId = maxId + 1
-		member.Id = nextId
-		store.members = append(store.members, *member)
-	}
-
+// Ignores member's Id field
+func (store *MemberPgStore) Insert(member *Member) error {
 	return nil
 }
 
-func (store *MemberPgStore) GetById(id uint64) (*Member, error) {
-	for _, m := range store.members {
-		if *m.Id == id {
-			ret := new(Member)
-			*ret = m
-			return ret, nil
-		}
-	}
+// Ignores member's Id field and uses the "id" parameter to id the member to be
+// updated
+func (store *MemberPgStore) Update(id uint64, member *Member) error {
+	return nil
+}
 
+func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
 	return nil, nil
 }
 
 func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
-	if page*pageSize > uint(len(store.members)) {
-		return []Member{}, nil
-	}
-
-	start := page * pageSize
-	end := (page + 1) * pageSize
-
-	end = min(end, uint(len(store.members)))
-
-	return store.members[start:end], nil
+	return make([]Member, 0), nil
 }
 
 func (store *MemberPgStore) Delete(id uint64) (bool, error) {
-	for i, m := range store.members {
-		if *m.Id == id {
-			store.members = append(store.members[:i], store.members[i+1:]...)
-			return true, nil
-		}
-	}
-
 	return false, nil
 }

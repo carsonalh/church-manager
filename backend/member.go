@@ -15,7 +15,7 @@ type Member struct {
 
 type MemberHandler struct {
 	mux   *http.ServeMux
-	store MemberStore
+	store *MemberPgStore
 }
 
 func (h *MemberHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +23,7 @@ func (h *MemberHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Member handler is a simple crud route
-func CreateMemberHandler(store MemberStore) *MemberHandler {
+func CreateMemberHandler(store *MemberPgStore) *MemberHandler {
 	mux := http.NewServeMux()
 	handler := &MemberHandler{mux: mux, store: store}
 
@@ -57,8 +57,8 @@ func (h *MemberHandler) postMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.Save(&body)
-	if err != nil {
+	insertErr := h.store.Insert(&body)
+	if insertErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -75,7 +75,7 @@ func (h *MemberHandler) getMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := h.store.GetById(id)
+	member, err := h.store.FindById(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
