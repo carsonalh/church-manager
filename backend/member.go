@@ -3,14 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
 )
 
 type Member struct {
-	Id        *uint64 `json:"id"`
-	FirstName *string `json:"firstName"`
-	LastName  *string `json:"lastName"`
+	Id           *uint64 `json:"id"`
+	FirstName    *string `json:"firstName"`
+	LastName     *string `json:"lastName"`
+	EmailAddress *string `json:"emailAddress"`
+	PhoneNumber  *string `json:"phoneNumber"`
+	Notes        *string `json:"notes"`
 }
 
 type MemberHandler struct {
@@ -39,6 +44,7 @@ func (h *MemberHandler) getMembers(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if members, err = h.store.Get(500, 0); err != nil {
+		log.Printf("GET /members : error getting members from database: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -53,19 +59,23 @@ func (h *MemberHandler) postMember(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewDecoder(r.Body).Decode(&body)
 	if err != nil || body.Id != nil {
+		if body.Id != nil {
+			_, _ = io.WriteString(w, "new member must not have id field")
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	insertErr := h.store.Insert(&body)
+	result, insertErr := h.store.Insert(&body)
 	if insertErr != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("POST /members : error inserting into database: %v", insertErr)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/members/%d", *body.Id))
+	w.Header().Set("Location", fmt.Sprintf("/members/%d", *result.Id))
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(body)
+	json.NewEncoder(w).Encode(result)
 }
 
 func (h *MemberHandler) getMember(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +87,7 @@ func (h *MemberHandler) getMember(w http.ResponseWriter, r *http.Request) {
 
 	member, err := h.store.FindById(id)
 	if err != nil {
+		log.Printf("GET /member/{id} : %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

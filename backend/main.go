@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 
@@ -19,7 +20,7 @@ func main() {
 		log.Fatalf("migration client failed to initialise: %v", err)
 	}
 	err = migration.Up()
-	if err != nil {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Fatalf("migration failed: %v", err)
 	}
 	fileErr, dbErr := migration.Close()
