@@ -4,33 +4,27 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type MemberPgStore struct {
-	conn *pgx.Conn
+	pool *pgxpool.Pool
 }
 
-func CreateMemberPgStore(conn *pgx.Conn) *MemberPgStore {
+func CreateMemberPgStore(conn *pgxpool.Pool) *MemberPgStore {
 	return &MemberPgStore{conn}
 }
 
 // Ignores member's Id field
 func (store *MemberPgStore) Insert(member *Member) (*Member, error) {
-	rows, err := store.conn.Query(
+	var result Member
+	err := store.pool.QueryRow(
 		context.Background(),
 		"INSERT INTO member (first_name, last_name, email_address, phone_number, notes)\n"+
 			"VALUES ($1, $2, $3, $4, COALESCE($5, ''))\n"+
 			"RETURNING id, first_name, last_name, email_address, phone_number, notes;",
-		member.FirstName, member.LastName, member.EmailAddress, member.PhoneNumber, member.Notes)
-	if err != nil {
-		return nil, err
-	}
-	if !rows.Next() {
-		return nil, fmt.Errorf("query did not return a row when one was expected")
-	}
-	var result Member
-	err = rows.Scan(&result.Id, &result.FirstName, &result.LastName, &result.EmailAddress, &result.PhoneNumber, &result.Notes)
+		member.FirstName, member.LastName, member.EmailAddress, member.PhoneNumber, member.Notes).
+		Scan(&result.Id, &result.FirstName, &result.LastName, &result.EmailAddress, &result.PhoneNumber, &result.Notes)
 	if err != nil {
 		return nil, err
 	}
@@ -40,27 +34,31 @@ func (store *MemberPgStore) Insert(member *Member) (*Member, error) {
 // Ignores member's Id field and uses the "id" parameter to id the member to be
 // updated
 func (store *MemberPgStore) Update(id uint64, member *Member) error {
-	_, err := store.conn.Query(
+	rows, err := store.pool.Query(
 		context.Background(),
 		"UPDATE member SET first_name = $1, last_name = $2, email_address = $3, phone_number = $4 WHERE id = $5;",
 		member.FirstName, member.LastName, member.EmailAddress, member.PhoneNumber, id)
-	return err
+	if err != nil {
+		return err
+	}
+	rows.Close()
+	return nil
 }
 
 func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
-	rows, err := store.conn.Query(
-		context.Background(),
-		"SELECT id, first_name, last_name, email_address, phone_number FROM member WHERE id = $1;",
-		id)
-	if err != nil {
-		return nil, err
-	}
-	if !rows.Next() {
-		return nil, fmt.Errorf("query did not return a row when one was expected")
-	}
-
 	var result Member
-	err = rows.Scan(&result.Id, &result.FirstName, &result.LastName, &result.EmailAddress, &result.PhoneNumber)
+	err := store.pool.QueryRow(
+		context.Background(),
+		"SELECT id, first_name, last_name, email_address, phone_number, notes FROM member WHERE id = $1;",
+		id,
+	).Scan(
+		&result.Id,
+		&result.FirstName,
+		&result.LastName,
+		&result.EmailAddress,
+		&result.PhoneNumber,
+		&result.Notes,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +67,10 @@ func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
 }
 
 func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
-	rows, err := store.conn.Query(
+	rows, err := store.pool.Query(
 		context.Background(),
 		"SELECT id, first_name, last_name, email_address, phone_number FROM member ORDER BY id OFFSET $1 LIMIT $2;",
-		page*pageSize, page)
+		page*pageSize, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -91,15 +89,10 @@ func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
 }
 
 func (store *MemberPgStore) Delete(id uint64) (bool, error) {
-	rows, err := store.conn.Query(context.Background(), "DELETE FROM member WHERE id = $1 RETURNING COUNT(*);", id)
-	if err != nil {
-		return false, err
-	}
-	if !rows.Next() {
-		return false, fmt.Errorf("expected a row but found none")
-	}
 	var deleted uint
-	err = rows.Scan(&deleted)
+	err := store.pool.
+		QueryRow(context.Background(), "DELETE FROM member WHERE id = $1 RETURNING COUNT(*);", id).
+		Scan(&deleted)
 	if err != nil {
 		return false, err
 	}
