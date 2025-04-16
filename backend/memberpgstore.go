@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -60,7 +62,11 @@ func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
 		&result.Notes,
 	)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
 
 	return &result, nil
@@ -89,13 +95,12 @@ func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
 }
 
 func (store *MemberPgStore) Delete(id uint64) (bool, error) {
-	var deleted uint
-	err := store.pool.
-		QueryRow(context.Background(), "DELETE FROM member WHERE id = $1 RETURNING COUNT(*);", id).
-		Scan(&deleted)
+	rows, err := store.pool.Query(context.Background(), "DELETE FROM member WHERE id = $1;", id)
 	if err != nil {
 		return false, err
 	}
+	rows.Close()
+	deleted := rows.CommandTag().RowsAffected()
 
 	if deleted == 0 {
 		return false, nil

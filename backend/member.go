@@ -34,6 +34,7 @@ func CreateMemberHandler(store *MemberPgStore) *MemberHandler {
 
 	mux.HandleFunc("GET /members", handler.getMembers)
 	mux.HandleFunc("GET /members/{id}", handler.getMember)
+	mux.HandleFunc("DELETE /members/{id}", handler.deleteMember)
 	mux.HandleFunc("POST /members", handler.postMember)
 
 	return handler
@@ -99,4 +100,26 @@ func (h *MemberHandler) getMember(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(*member)
+}
+
+func (h *MemberHandler) deleteMember(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := h.store.Delete(id)
+	if err != nil {
+		log.Printf("DELETE /member/{id} : %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if deleted {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		// The only conceivable reason why a delete count would be zero
+		w.WriteHeader(http.StatusNotFound)
+	}
 }
