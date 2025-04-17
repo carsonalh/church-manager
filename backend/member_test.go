@@ -245,5 +245,34 @@ func TestMemberRest(t *testing.T) {
 		}
 	})
 
+	t.Run("POST, DELETE and DELETE returns a 404", func(t *testing.T) {
+		client := TestRestClient{
+			t:         t,
+			serverUrl: server.URL,
+		}
+
+		member := Member{
+			FirstName: NewPtr("John"),
+			LastName:  NewPtr("Calvin"),
+			Notes:     NewPtr("Still writing that very long book"),
+		}
+
+		response := client.MakeRequest("POST", "/members", &member, nil)
+		location, err := response.Location()
+		if err != nil {
+			t.Fatalf("error reading location from response")
+		}
+
+		response = client.MakeRequest("DELETE", location.Path, nil, nil)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("expected DELETE to be 200 OK, but was %s", response.Status)
+		}
+
+		response = client.MakeRequest("DELETE", location.Path, nil, nil)
+		if response.StatusCode != http.StatusNotFound {
+			t.Errorf("expected DELETE to be 404 Not Found, but was %s", response.Status)
+		}
+	})
+
 	// TODO test pagination of data
 }
