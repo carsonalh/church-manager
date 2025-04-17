@@ -26,5 +26,4 @@ go.work.sum
 .env
 
 __debug_bin*
-
-postgres-data/
+out/

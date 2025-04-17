@@ -9,16 +9,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type MemberPgStore struct {
+type MemberPostgresStore struct {
 	pool *pgxpool.Pool
 }
 
-func CreateMemberPgStore(conn *pgxpool.Pool) *MemberPgStore {
-	return &MemberPgStore{conn}
+func CreateMemberPgStore(conn *pgxpool.Pool) *MemberPostgresStore {
+	return &MemberPostgresStore{conn}
 }
 
 // Ignores member's Id field
-func (store *MemberPgStore) Insert(member *Member) (*Member, error) {
+func (store *MemberPostgresStore) Insert(member *Member) (*Member, error) {
 	var result Member
 	err := store.pool.QueryRow(
 		context.Background(),
@@ -35,7 +35,7 @@ func (store *MemberPgStore) Insert(member *Member) (*Member, error) {
 
 // Ignores member's Id field and uses the "id" parameter to id the member to be
 // updated
-func (store *MemberPgStore) Update(id uint64, member *Member) error {
+func (store *MemberPostgresStore) Update(id uint64, member *Member) error {
 	rows, err := store.pool.Query(
 		context.Background(),
 		"UPDATE member SET first_name = $1, last_name = $2, email_address = $3, phone_number = $4, notes = $5 WHERE id = $6;",
@@ -49,7 +49,7 @@ func (store *MemberPgStore) Update(id uint64, member *Member) error {
 	return nil
 }
 
-func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
+func (store *MemberPostgresStore) FindById(id uint64) (*Member, error) {
 	var result Member
 	err := store.pool.QueryRow(
 		context.Background(),
@@ -74,7 +74,7 @@ func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
 	return &result, nil
 }
 
-func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
+func (store *MemberPostgresStore) GetPage(pageSize uint, page uint) ([]Member, error) {
 	rows, err := store.pool.Query(
 		context.Background(),
 		"SELECT id, first_name, last_name, email_address, phone_number, notes FROM member ORDER BY id OFFSET $1 LIMIT $2;",
@@ -96,7 +96,7 @@ func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
 	return members, nil
 }
 
-func (store *MemberPgStore) Delete(id uint64) (bool, error) {
+func (store *MemberPostgresStore) Delete(id uint64) (bool, error) {
 	rows, err := store.pool.Query(context.Background(), "DELETE FROM member WHERE id = $1;", id)
 	if err != nil {
 		return false, err

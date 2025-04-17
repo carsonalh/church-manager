@@ -19,18 +19,31 @@ type Member struct {
 }
 
 type MemberHandler struct {
-	mux   *http.ServeMux
-	store *MemberPgStore
+	mux             *http.ServeMux
+	store           *MemberPostgresStore
+	defaultPageSize uint
+	maxPageSize     uint
 }
 
 func (h *MemberHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-// Member handler is a simple crud route
-func CreateMemberHandler(store *MemberPgStore) *MemberHandler {
+type MemberHandlerConfig struct {
+	DefaultPageSize uint
+	MaxPageSize     uint
+}
+
+// Member handler is a simple crud route. `config` is a non-nil object with
+// necessary parameters to configure this route handler
+func CreateMemberHandler(store *MemberPostgresStore, config *MemberHandlerConfig) *MemberHandler {
 	mux := http.NewServeMux()
-	handler := &MemberHandler{mux: mux, store: store}
+	handler := &MemberHandler{
+		mux:             mux,
+		store:           store,
+		maxPageSize:     config.MaxPageSize,
+		defaultPageSize: config.DefaultPageSize,
+	}
 
 	mux.HandleFunc("GET /members", handler.getMembers)
 	mux.HandleFunc("POST /members", handler.postMember)
@@ -45,7 +58,24 @@ func (h *MemberHandler) getMembers(w http.ResponseWriter, r *http.Request) {
 	var members []Member
 	var err error
 
-	if members, err = h.store.Get(500, 0); err != nil {
+	pageSize64, err := strconv.ParseUint(r.URL.Query().Get("pageSize"), 10, 32)
+	var pageSize uint
+	if err != nil {
+		pageSize = h.defaultPageSize
+	} else {
+		pageSize = uint(pageSize64)
+	}
+	pageSize = min(pageSize, h.maxPageSize)
+
+	page64, err := strconv.ParseUint(r.URL.Query().Get("page"), 10, 32)
+	var page uint
+	if err != nil {
+		page = 0
+	} else {
+		page = uint(page64)
+	}
+
+	if members, err = h.store.GetPage(pageSize, page); err != nil {
 		log.Printf("GET /members : error getting members from database: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

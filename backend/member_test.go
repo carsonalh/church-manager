@@ -4,11 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func SetupTestSuite(tb testing.TB) func(testing.TB) {
@@ -54,8 +60,65 @@ func (c *TestRestClient) MakeRequest(method string, url string, body any, respon
 	return response
 }
 
+type TestPostgresContainer struct {
+	container testcontainers.Container
+	logs      io.ReadCloser
+	logFile   *os.File
+}
+
+func CreateTestContainer(tb testing.TB) (container *TestPostgresContainer, connectionString string) {
+	user := "postgres"
+	password := "admin"
+	database := "churchmanager"
+
+	container = new(TestPostgresContainer)
+
+	var err, containerErr error
+	container.container, containerErr = testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "postgres:17.4",
+			ExposedPorts: []string{"5432/tcp"},
+			Env: map[string]string{
+				"POSTGRES_DB":       database,
+				"POSTGRES_USER":     user,
+				"POSTGRES_PASSWORD": password,
+			},
+			WaitingFor: wait.ForExposedPort(),
+		},
+		Started: true,
+	})
+	testcontainers.CleanupContainer(tb, container.container)
+	container.logs, err = container.container.Logs(context.Background())
+	if err != nil {
+		tb.Fatalf("error getting logs from test container: %v", err)
+	}
+	tb.Cleanup(func() { container.logs.Close() })
+	_ = os.Mkdir("out", 0o755) // rwxr-xr-x permissions
+	container.logFile, err = os.Create("out/postgres.log")
+	if err != nil {
+		tb.Fatalf("error creating output log file for test container: %v", err)
+	}
+	io.Copy(container.logFile, container.logs)
+	if containerErr != nil {
+		tb.Fatalf("failed to start postgres test container: %v", containerErr)
+	}
+	innerPort, err := nat.NewPort("tcp", "5432")
+	if err != nil {
+		tb.Fatal("error creating port for mapping")
+	}
+	outerPort, err := container.container.MappedPort(context.Background(), innerPort)
+	if err != nil {
+		tb.Fatal("error mapping port")
+	}
+
+	port := outerPort.Port()
+	connectionString = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", user, password, port, database)
+	return
+}
+
 func TestMemberRest(t *testing.T) {
-	connectionString := "postgres://postgres:admin@localhost:5432/churchmanager"
+	_, connectionString := CreateTestContainer(t)
+
 	err := PerformMigration(connectionString)
 	if err != nil {
 		t.Fatalf("database migration error: %v", err)
@@ -66,7 +129,13 @@ func TestMemberRest(t *testing.T) {
 	}
 	defer conn.Close()
 
-	server := httptest.NewServer(CreateMemberHandler(CreateMemberPgStore(conn)))
+	// Clear the database ready for testing
+	// _ = conn.QueryRow(context.Background(), "DELETE FROM member;").Scan()
+
+	server := httptest.NewServer(CreateMemberHandler(CreateMemberPgStore(conn), &MemberHandlerConfig{
+		DefaultPageSize: 50,
+		MaxPageSize:     500,
+	}))
 	defer server.Close()
 
 	t.Run("POST and GET again", func(t *testing.T) {
@@ -274,5 +343,61 @@ func TestMemberRest(t *testing.T) {
 		}
 	})
 
-	// TODO test pagination of data
+	t.Run("insert many entities and page through the data", func(t *testing.T) {
+		client := TestRestClient{
+			t:         t,
+			serverUrl: server.URL,
+		}
+
+		member := Member{
+			FirstName: NewPtr("John"),
+			LastName:  NewPtr("Calvin"),
+			Notes:     NewPtr("Still writing that very long book"),
+		}
+
+		pageSize := 20
+
+		members := make([]Member, 0)
+
+		prevPages := 0
+		for client.MakeRequest("GET", fmt.Sprintf("/members?pageSize=%d&page=%d", pageSize, prevPages), nil, &members) != nil &&
+			len(members) > 0 {
+			prevPages += 1
+		}
+
+		ids := make([]uint64, 0)
+
+		for range pageSize + 1 {
+			created := Member{}
+			_ = client.MakeRequest("POST", "/members", &member, &created)
+			if created.Id == nil {
+				t.Fatalf("POST returned entity with nil id")
+			}
+
+			ids = append(ids, *created.Id)
+		}
+
+		pages := 0
+		for client.MakeRequest("GET", fmt.Sprintf("/members?pageSize=%d&page=%d", pageSize, pages), nil, &members) != nil &&
+			len(members) > 0 {
+			pages += 1
+
+			for _, m := range members {
+				for iid, id := range ids {
+					if id == *m.Id {
+						ids = append(ids[:iid], ids[iid+1:]...)
+						break
+					}
+				}
+			}
+		}
+
+		if len(ids) > 0 {
+			t.Errorf("ids %v were created but not found in the paginated result", ids)
+		}
+
+		if pages != prevPages+1 {
+			t.Errorf("expected to increase page count by 1, but increased it by %d", pages-prevPages)
+		}
+	})
 }

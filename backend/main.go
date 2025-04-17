@@ -23,7 +23,10 @@ func main() {
 		log.Fatalf("failed to connect to postgres database: %v", err)
 	}
 
-	memberHandler := CreateMemberHandler(CreateMemberPgStore(pgConnection))
+	memberHandler := CreateMemberHandler(CreateMemberPgStore(pgConnection), &MemberHandlerConfig{
+		DefaultPageSize: 200,
+		MaxPageSize:     500,
+	})
 
 	mux := http.NewServeMux()
 	mux.Handle("/members", memberHandler)
