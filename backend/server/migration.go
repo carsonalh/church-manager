@@ -9,8 +9,8 @@ import (
 
 // Creates a database connection, migrates the database to the most current
 // version, and destroys the connection.
-func PerformMigration(connectionString string) error {
-	migration, err := migrate.New("file://migrations", connectionString+"?sslmode=disable")
+func PerformMigration(migrationsPath string, connectionString string) error {
+	migration, err := migrate.New("file://"+migrationsPath, connectionString+"?sslmode=disable")
 
 	if err != nil {
 		return fmt.Errorf("migration client failed to initialise: %v", err)

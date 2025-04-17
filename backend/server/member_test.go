@@ -119,7 +119,7 @@ func CreateTestContainer(tb testing.TB) (container *TestPostgresContainer, conne
 func TestMemberRest(t *testing.T) {
 	_, connectionString := CreateTestContainer(t)
 
-	err := PerformMigration(connectionString)
+	err := PerformMigration("../migrations", connectionString)
 	if err != nil {
 		t.Fatalf("database migration error: %v", err)
 	}

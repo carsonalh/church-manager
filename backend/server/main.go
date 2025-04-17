@@ -13,7 +13,7 @@ import (
 func main() {
 	connectionString := "postgres://postgres:admin@localhost:5432/churchmanager"
 
-	err := PerformMigration(connectionString)
+	err := PerformMigration("migrations", connectionString)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
