@@ -17,6 +17,7 @@ func TestNewInit(t *testing.T) {
 			ni := NewPtr(v)
 			if ni == nil {
 				t.Error("value is nil")
+				return
 			}
 			if *ni != v {
 				t.Errorf("pointer value did not match, expected %v and got %v", v, *ni)
