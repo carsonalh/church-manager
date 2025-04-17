@@ -38,8 +38,10 @@ func (store *MemberPgStore) Insert(member *Member) (*Member, error) {
 func (store *MemberPgStore) Update(id uint64, member *Member) error {
 	rows, err := store.pool.Query(
 		context.Background(),
-		"UPDATE member SET first_name = $1, last_name = $2, email_address = $3, phone_number = $4 WHERE id = $5;",
-		member.FirstName, member.LastName, member.EmailAddress, member.PhoneNumber, id)
+		"UPDATE member SET first_name = $1, last_name = $2, email_address = $3, phone_number = $4, notes = $5 WHERE id = $6;",
+		member.FirstName, member.LastName, member.EmailAddress, member.PhoneNumber, member.Notes,
+		id,
+	)
 	if err != nil {
 		return err
 	}
@@ -75,7 +77,7 @@ func (store *MemberPgStore) FindById(id uint64) (*Member, error) {
 func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
 	rows, err := store.pool.Query(
 		context.Background(),
-		"SELECT id, first_name, last_name, email_address, phone_number FROM member ORDER BY id OFFSET $1 LIMIT $2;",
+		"SELECT id, first_name, last_name, email_address, phone_number, notes FROM member ORDER BY id OFFSET $1 LIMIT $2;",
 		page*pageSize, pageSize)
 	if err != nil {
 		return nil, err
@@ -84,7 +86,7 @@ func (store *MemberPgStore) Get(pageSize uint, page uint) ([]Member, error) {
 	var member Member
 	i := 0
 	for rows.Next() {
-		err = rows.Scan(&member.Id, &member.FirstName, &member.LastName, &member.EmailAddress, &member.PhoneNumber)
+		err = rows.Scan(&member.Id, &member.FirstName, &member.LastName, &member.EmailAddress, &member.PhoneNumber, &member.Notes)
 		if err != nil {
 			return nil, fmt.Errorf("scanning row %d: %v", i, err)
 		}

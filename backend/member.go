@@ -33,9 +33,10 @@ func CreateMemberHandler(store *MemberPgStore) *MemberHandler {
 	handler := &MemberHandler{mux: mux, store: store}
 
 	mux.HandleFunc("GET /members", handler.getMembers)
-	mux.HandleFunc("GET /members/{id}", handler.getMember)
-	mux.HandleFunc("DELETE /members/{id}", handler.deleteMember)
 	mux.HandleFunc("POST /members", handler.postMember)
+	mux.HandleFunc("GET /members/{id}", handler.getMember)
+	mux.HandleFunc("PUT /members/{id}", handler.putMember)
+	mux.HandleFunc("DELETE /members/{id}", handler.deleteMember)
 
 	return handler
 }
@@ -98,8 +99,42 @@ func (h *MemberHandler) getMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(*member)
+	err = json.NewEncoder(w).Encode(*member)
+	if err != nil {
+		log.Printf("failed to encode json: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *MemberHandler) putMember(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var member Member
+	err = json.NewDecoder(r.Body).Decode(&member)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = h.store.Update(id, &member)
+	if err != nil {
+		log.Printf("PUT /members/{id} : error updating member: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	member.Id = NewPtr(id)
+	err = json.NewEncoder(w).Encode(member)
+	if err != nil {
+		log.Printf("PUT /members/{id} : failed to encode json: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *MemberHandler) deleteMember(w http.ResponseWriter, r *http.Request) {

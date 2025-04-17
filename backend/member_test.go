@@ -230,8 +230,15 @@ func TestMemberRest(t *testing.T) {
 
 		member.Notes = NewPtr("Now re-writing the same book in French")
 
-		_ = client.MakeRequest("PUT", location.Path, &member, nil)
-		_ = client.MakeRequest("GET", location.Path, nil, &member)
+		response = client.MakeRequest("PUT", location.Path, &member, nil)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("PUT /members/{id} : expected status 200 OK but got %s", response.Status)
+		}
+
+		response = client.MakeRequest("GET", location.Path, nil, &member)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("GET /members/{id} : expected status 200 OK but got %s", response.Status)
+		}
 
 		if member.Notes == nil || *member.Notes != "Now re-writing the same book in French" {
 			t.Error("updated data did not correctly persist accross calls")
