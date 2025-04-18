@@ -1,4 +1,4 @@
-package main
+package util
 
 // Returns "new" initialised memory.
 // Calls `new()` on the given type, writes the value to the pointer and returns

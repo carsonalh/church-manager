@@ -1,8 +1,10 @@
-package main
+package util_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/carsonalh/churchmanagerbackend/server/util"
 )
 
 func TestNewInit(t *testing.T) {
@@ -14,7 +16,7 @@ func TestNewInit(t *testing.T) {
 
 	for _, v := range values {
 		t.Run(fmt.Sprintf("NewInit(%v)", v), func(t *testing.T) {
-			ni := NewPtr(v)
+			ni := util.NewPtr(v)
 			if ni == nil {
 				t.Error("value is nil")
 				return

@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/carsonalh/churchmanagerbackend/server/util"
 )
 
 type Member struct {
@@ -91,10 +93,10 @@ func (h *MemberHandler) postMember(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewDecoder(r.Body).Decode(&body)
 	if err != nil || body.Id != nil {
-		if body.Id != nil {
-			_, _ = io.WriteString(w, "new member must not have id field")
-		}
 		w.WriteHeader(http.StatusBadRequest)
+		if body.Id != nil {
+			_, _ = io.WriteString(w, "new member must not have id field\n")
+		}
 		return
 	}
 
@@ -158,7 +160,7 @@ func (h *MemberHandler) putMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member.Id = NewPtr(id)
+	member.Id = util.NewPtr(id)
 	err = json.NewEncoder(w).Encode(member)
 	if err != nil {
 		log.Printf("PUT /members/{id} : failed to encode json: %v", err)

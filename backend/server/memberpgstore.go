@@ -13,8 +13,8 @@ type MemberPostgresStore struct {
 	pool *pgxpool.Pool
 }
 
-func CreateMemberPgStore(conn *pgxpool.Pool) *MemberPostgresStore {
-	return &MemberPostgresStore{conn}
+func CreateMemberPostgresStore(pool *pgxpool.Pool) *MemberPostgresStore {
+	return &MemberPostgresStore{pool}
 }
 
 // Ignores member's Id field

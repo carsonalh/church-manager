@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/carsonalh/churchmanagerbackend/server/util"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -132,7 +133,7 @@ func TestMemberRest(t *testing.T) {
 	// Clear the database ready for testing
 	// _ = conn.QueryRow(context.Background(), "DELETE FROM member;").Scan()
 
-	server := httptest.NewServer(CreateMemberHandler(CreateMemberPgStore(conn), &MemberHandlerConfig{
+	server := httptest.NewServer(CreateMemberHandler(CreateMemberPostgresStore(conn), &MemberHandlerConfig{
 		DefaultPageSize: 50,
 		MaxPageSize:     500,
 	}))
@@ -145,10 +146,10 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		requestBody := Member{
-			FirstName:    NewPtr("Thomas"),
-			LastName:     NewPtr("More"),
-			EmailAddress: NewPtr("thomas.more.1478@gmail.com"),
-			Notes:        NewPtr("Not to be put in the same Bible study as Luther"),
+			FirstName:    util.NewPtr("Thomas"),
+			LastName:     util.NewPtr("More"),
+			EmailAddress: util.NewPtr("thomas.more.1478@gmail.com"),
+			Notes:        util.NewPtr("Not to be put in the same Bible study as Luther"),
 		}
 
 		firstResponse := Member{}
@@ -197,10 +198,10 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		member := Member{
-			FirstName:    NewPtr("Martin"),
-			LastName:     NewPtr("Luther"),
-			EmailAddress: NewPtr("martin_luther@live.co.de"),
-			PhoneNumber:  NewPtr("0428374598"),
+			FirstName:    util.NewPtr("Martin"),
+			LastName:     util.NewPtr("Luther"),
+			EmailAddress: util.NewPtr("martin_luther@live.co.de"),
+			PhoneNumber:  util.NewPtr("0428374598"),
 		}
 
 		var createdMember Member
@@ -251,8 +252,8 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		member := Member{
-			FirstName: NewPtr("Carson"),
-			LastName:  NewPtr("Holloway"),
+			FirstName: util.NewPtr("Carson"),
+			LastName:  util.NewPtr("Holloway"),
 		}
 
 		response := client.MakeRequest("POST", "/members", &member, nil)
@@ -286,9 +287,9 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		member := Member{
-			FirstName: NewPtr("John"),
-			LastName:  NewPtr("Calvin"),
-			Notes:     NewPtr("Still writing that very long book"),
+			FirstName: util.NewPtr("John"),
+			LastName:  util.NewPtr("Calvin"),
+			Notes:     util.NewPtr("Still writing that very long book"),
 		}
 
 		response := client.MakeRequest("POST", "/members", &member, &member)
@@ -297,7 +298,7 @@ func TestMemberRest(t *testing.T) {
 			t.Fatalf("could not read Location header from response: %v", err)
 		}
 
-		member.Notes = NewPtr("Now re-writing the same book in French")
+		member.Notes = util.NewPtr("Now re-writing the same book in French")
 
 		response = client.MakeRequest("PUT", location.Path, &member, nil)
 		if response.StatusCode != http.StatusOK {
@@ -321,9 +322,9 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		member := Member{
-			FirstName: NewPtr("John"),
-			LastName:  NewPtr("Calvin"),
-			Notes:     NewPtr("Still writing that very long book"),
+			FirstName: util.NewPtr("John"),
+			LastName:  util.NewPtr("Calvin"),
+			Notes:     util.NewPtr("Still writing that very long book"),
 		}
 
 		response := client.MakeRequest("POST", "/members", &member, nil)
@@ -350,9 +351,9 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		member := Member{
-			FirstName: NewPtr("John"),
-			LastName:  NewPtr("Calvin"),
-			Notes:     NewPtr("Still writing that very long book"),
+			FirstName: util.NewPtr("John"),
+			LastName:  util.NewPtr("Calvin"),
+			Notes:     util.NewPtr("Still writing that very long book"),
 		}
 
 		pageSize := 20
