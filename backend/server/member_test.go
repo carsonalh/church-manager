@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/carsonalh/churchmanagerbackend/server/controller"
+	"github.com/carsonalh/churchmanagerbackend/server/domain"
 	"github.com/carsonalh/churchmanagerbackend/server/util"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -124,18 +126,17 @@ func TestMemberRest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("database migration error: %v", err)
 	}
-	conn, err := pgxpool.New(context.Background(), connectionString)
+	pool, err := pgxpool.New(context.Background(), connectionString)
 	if err != nil {
 		t.Fatalf("could not connect to the database")
 	}
-	defer conn.Close()
+	defer pool.Close()
 
-	// Clear the database ready for testing
-	// _ = conn.QueryRow(context.Background(), "DELETE FROM member;").Scan()
-
-	server := httptest.NewServer(CreateMemberHandler(CreateMemberPostgresStore(conn), &MemberHandlerConfig{
-		DefaultPageSize: 50,
-		MaxPageSize:     500,
+	server := httptest.NewServer(CreateServer(pool, ServerConfig{
+		Members: controller.MemberControllerConfig{
+			DefaultPageSize: 50,
+			MaxPageSize:     500,
+		},
 	}))
 	defer server.Close()
 
@@ -145,19 +146,16 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		requestBody := Member{
+		requestBody := domain.MemberUpdateDTO{
 			FirstName:    util.NewPtr("Thomas"),
 			LastName:     util.NewPtr("More"),
 			EmailAddress: util.NewPtr("thomas.more.1478@gmail.com"),
-			Notes:        util.NewPtr("Not to be put in the same Bible study as Luther"),
+			Notes:        "Not to be put in the same Bible study as Luther",
 		}
 
-		firstResponse := Member{}
+		firstResponse := domain.MemberResponseDTO{}
 
 		response := client.MakeRequest("POST", "/members", &requestBody, &firstResponse)
-		if firstResponse.Id == nil {
-			t.Errorf("response body should have an id")
-		}
 		if response.StatusCode != http.StatusCreated {
 			t.Errorf("expected status 201 Created, but got %s", response.Status)
 		}
@@ -166,7 +164,7 @@ func TestMemberRest(t *testing.T) {
 			t.Fatalf("could not read Location header from response: %v", err)
 		}
 
-		finalResponse := Member{}
+		finalResponse := domain.MemberResponseDTO{}
 		_ = client.MakeRequest("GET", location.Path, nil, &finalResponse)
 
 		derefOrNil := func(x *string) any {
@@ -178,8 +176,7 @@ func TestMemberRest(t *testing.T) {
 
 		if derefOrNil(requestBody.FirstName) != derefOrNil(finalResponse.FirstName) ||
 			derefOrNil(requestBody.LastName) != derefOrNil(finalResponse.LastName) ||
-			derefOrNil(requestBody.EmailAddress) != derefOrNil(finalResponse.EmailAddress) ||
-			derefOrNil(requestBody.Notes) != derefOrNil(finalResponse.Notes) {
+			derefOrNil(requestBody.EmailAddress) != derefOrNil(finalResponse.EmailAddress) {
 			requestJson, _ := json.Marshal(requestBody)
 			responseJson, _ := json.Marshal(finalResponse)
 			t.Errorf(
@@ -197,25 +194,22 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		member := Member{
+		member := domain.MemberUpdateDTO{
 			FirstName:    util.NewPtr("Martin"),
 			LastName:     util.NewPtr("Luther"),
 			EmailAddress: util.NewPtr("martin_luther@live.co.de"),
 			PhoneNumber:  util.NewPtr("0428374598"),
 		}
 
-		var createdMember Member
+		var createdMember domain.MemberResponseDTO
 
 		response := client.MakeRequest("POST", "/members", &member, &createdMember)
 		if response.StatusCode != http.StatusCreated {
 			t.Errorf("expected POST /members response to be 201 Created but was %s", response.Status)
 		}
-		if createdMember.Id == nil {
-			t.Fatal("expected created member to have a valid id")
-		}
-		createdId := *createdMember.Id
+		createdId := createdMember.Id
 
-		members := make([]Member, 0)
+		members := make([]domain.MemberResponseDTO, 0)
 
 		response = client.MakeRequest("GET", "/members", nil, &members)
 		if response.StatusCode != http.StatusOK {
@@ -223,20 +217,12 @@ func TestMemberRest(t *testing.T) {
 		}
 
 		recordFound := false
-		for i, m := range members {
-			if m.Id == nil {
-				mJson, _ := json.Marshal(m)
-				t.Errorf(
-					"found a record with a nil id at index %d in the GET request, json: %s",
-					i, string(mJson),
-				)
-			} else {
-				if *m.Id == createdId {
-					if recordFound {
-						t.Error("found another record with the id being searched for")
-					}
-					recordFound = true
+		for _, m := range members {
+			if m.Id == createdId {
+				if recordFound {
+					t.Error("found another record with the id being searched for")
 				}
+				recordFound = true
 			}
 		}
 
@@ -251,7 +237,7 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		member := Member{
+		member := domain.MemberUpdateDTO{
 			FirstName: util.NewPtr("Carson"),
 			LastName:  util.NewPtr("Holloway"),
 		}
@@ -286,10 +272,10 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		member := Member{
+		member := domain.MemberUpdateDTO{
 			FirstName: util.NewPtr("John"),
 			LastName:  util.NewPtr("Calvin"),
-			Notes:     util.NewPtr("Still writing that very long book"),
+			Notes:     "Still writing that very long book",
 		}
 
 		response := client.MakeRequest("POST", "/members", &member, &member)
@@ -298,7 +284,7 @@ func TestMemberRest(t *testing.T) {
 			t.Fatalf("could not read Location header from response: %v", err)
 		}
 
-		member.Notes = util.NewPtr("Now re-writing the same book in French")
+		member.Notes = "Now re-writing the same book in French"
 
 		response = client.MakeRequest("PUT", location.Path, &member, nil)
 		if response.StatusCode != http.StatusOK {
@@ -310,7 +296,7 @@ func TestMemberRest(t *testing.T) {
 			t.Errorf("GET /members/{id} : expected status 200 OK but got %s", response.Status)
 		}
 
-		if member.Notes == nil || *member.Notes != "Now re-writing the same book in French" {
+		if member.Notes != "Now re-writing the same book in French" {
 			t.Error("updated data did not correctly persist accross calls")
 		}
 	})
@@ -321,10 +307,10 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		member := Member{
+		member := domain.MemberRow{
 			FirstName: util.NewPtr("John"),
 			LastName:  util.NewPtr("Calvin"),
-			Notes:     util.NewPtr("Still writing that very long book"),
+			Notes:     "Still writing that very long book",
 		}
 
 		response := client.MakeRequest("POST", "/members", &member, nil)
@@ -350,15 +336,15 @@ func TestMemberRest(t *testing.T) {
 			serverUrl: server.URL,
 		}
 
-		member := Member{
+		member := domain.MemberUpdateDTO{
 			FirstName: util.NewPtr("John"),
 			LastName:  util.NewPtr("Calvin"),
-			Notes:     util.NewPtr("Still writing that very long book"),
+			Notes:     "Still writing that very long book",
 		}
 
 		pageSize := 20
 
-		members := make([]Member, 0)
+		members := make([]domain.MemberResponseDTO, 0)
 
 		prevPages := 0
 		for client.MakeRequest("GET", fmt.Sprintf("/members?pageSize=%d&page=%d", pageSize, prevPages), nil, &members) != nil &&
@@ -369,13 +355,9 @@ func TestMemberRest(t *testing.T) {
 		ids := make([]uint64, 0)
 
 		for range pageSize + 1 {
-			created := Member{}
+			created := domain.MemberResponseDTO{}
 			_ = client.MakeRequest("POST", "/members", &member, &created)
-			if created.Id == nil {
-				t.Fatalf("POST returned entity with nil id")
-			}
-
-			ids = append(ids, *created.Id)
+			ids = append(ids, created.Id)
 		}
 
 		pages := 0
@@ -385,7 +367,7 @@ func TestMemberRest(t *testing.T) {
 
 			for _, m := range members {
 				for iid, id := range ids {
-					if id == *m.Id {
+					if id == m.Id {
 						ids = append(ids[:iid], ids[iid+1:]...)
 						break
 					}

@@ -10,63 +10,49 @@ import (
 
 	"github.com/carsonalh/churchmanagerbackend/server/domain"
 	"github.com/carsonalh/churchmanagerbackend/server/store"
+	"github.com/gin-gonic/gin"
 )
 
 type ScheduleHandler struct {
-	mux   *http.ServeMux
 	store *store.ScheduleStore
 }
 
-func CreateScheduleHandler(store *store.ScheduleStore) *ScheduleHandler {
-	mux := http.NewServeMux()
+func SetupScheduleHandler(router *gin.RouterGroup, store *store.ScheduleStore) {
+	handler := ScheduleHandler{store: store}
 
-	handler := ScheduleHandler{
-		mux:   mux,
-		store: store,
-	}
-
-	mux.HandleFunc("POST /schedules", handler.postChurchServiceSchedule)
-
-	return &handler
+	router.POST("", handler.postChurchServiceSchedule)
 }
 
-func (h *ScheduleHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mux.ServeHTTP(w, r)
-}
-
-func (h *ScheduleHandler) postChurchServiceSchedule(w http.ResponseWriter, r *http.Request) {
+func (h *ScheduleHandler) postChurchServiceSchedule(c *gin.Context) {
 	var createDto domain.ScheduleCreateDTO
 
-	err := json.NewDecoder(r.Body).Decode(&createDto)
-	if err != nil {
+	if err := c.BindJSON(&createDto); err != nil {
 		var syntaxErr *json.SyntaxError
 		var typeErr *json.UnmarshalTypeError
 		var timeParseErr *time.ParseError
-		w.WriteHeader(http.StatusBadRequest)
 		switch {
 		case errors.As(err, &syntaxErr):
-			w.Write([]byte(fmt.Sprintf("syntax error at character %d\n", syntaxErr.Offset)))
+			c.String(http.StatusBadRequest, fmt.Sprintf("syntax error at character %d\n", syntaxErr.Offset))
 		case errors.As(err, &typeErr):
-			w.Write([]byte(fmt.Sprintf("type error for field %s\n", typeErr.Field)))
+			c.String(http.StatusBadRequest, fmt.Sprintf("type error for field %s\n", typeErr.Field))
 		case errors.As(err, &timeParseErr):
-			w.Write([]byte(fmt.Sprintf("error parsing timestamp: %s\n", timeParseErr.Error())))
+			c.String(http.StatusBadRequest, fmt.Sprintf("error parsing timestamp: %s\n", timeParseErr.Error()))
 		}
 		return
 	}
 
 	errs := createDto.Validate()
 	if len(errs) != 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		// TODO display errors to user
+		c.JSON(http.StatusBadRequest, errs)
 		return
 	}
 
 	schedule, err := h.store.Create(&createDto)
 	if err != nil {
 		log.Printf("error inserting into database: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(schedule.ToResponseDTO())
+	c.JSON(http.StatusOK, schedule.ToResponseDTO())
 }

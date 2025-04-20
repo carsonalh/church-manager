@@ -83,7 +83,7 @@ type ScheduleRow struct {
 
 func (row *ScheduleRow) ToSchedule() (*Schedule, error) {
 	if row.Id == nil {
-		return nil, fmt.Errorf("Id cannot be nil")
+		return nil, fmt.Errorf("id cannot be nil")
 	}
 
 	if row.BeginDate == nil {
