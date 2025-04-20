@@ -20,10 +20,10 @@ type ScheduleHandler struct {
 func SetupScheduleHandler(router *gin.RouterGroup, store *store.ScheduleStore) {
 	handler := ScheduleHandler{store: store}
 
-	router.POST("", handler.postChurchServiceSchedule)
+	router.POST("", handler.postSchedule)
 }
 
-func (h *ScheduleHandler) postChurchServiceSchedule(c *gin.Context) {
+func (h *ScheduleHandler) postSchedule(c *gin.Context) {
 	var createDto domain.ScheduleCreateDTO
 
 	if err := c.BindJSON(&createDto); err != nil {

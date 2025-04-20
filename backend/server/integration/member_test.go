@@ -205,6 +205,22 @@ func TestMemberRest(t *testing.T) {
 		}
 	})
 
+	t.Run("PUT with a bad id gives a 400", func(t *testing.T) {
+		client := TestRestClient{
+			t:         t,
+			serverUrl: server.URL,
+		}
+
+		updateDto := domain.MemberUpdateDTO{
+			FirstName: util.NewPtr("Jackson"),
+		}
+
+		response := client.MakeRequest("PUT", "/members/abc", &updateDto, nil)
+		if response.StatusCode != http.StatusBadRequest {
+			t.Errorf("expected PUT with a bad id to give a 400")
+		}
+	})
+
 	t.Run("POST, DELETE and DELETE returns a 404", func(t *testing.T) {
 		client := TestRestClient{
 			t:         t,

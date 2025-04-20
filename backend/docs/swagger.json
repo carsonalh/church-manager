@@ -1,0 +1,237 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API for the Church Manager backend. Same api as used by the frontend.",
+        "title": "Church Manager API",
+        "contact": {}
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/members": {
+            "get": {
+                "description": "Invalid query parameters are coerced to their default values.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get index of members.",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "The size of the returned page. Maximum value is 500.",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The page index (zero-based) to get. Pages that are out of range return emtpy lists.",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/MemberResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Add a member",
+                "parameters": [
+                    {
+                        "description": "Member to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MemberUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/MemberResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "Invalid"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/{id}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get a member",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "The id of the member to get",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MemberResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "The"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Update a member",
+                "parameters": [
+                    {
+                        "description": "New data for the member. This operation replaces the member entirely.",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MemberUpdate"
+                        }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Member ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MemberResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Delete a member",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Member ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "No"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "MemberResponse": {
+            "type": "object",
+            "properties": {
+                "emailAddress": {
+                    "type": "string",
+                    "example": "aug.of.hippo@live.roma"
+                },
+                "firstName": {
+                    "type": "string",
+                    "example": "Augustinus"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 81996
+                },
+                "lastName": {
+                    "type": "string",
+                    "example": "Hipponensis"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Fluent in Latin and Greek."
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "0434579344"
+                }
+            }
+        },
+        "MemberUpdate": {
+            "type": "object",
+            "properties": {
+                "emailAddress": {
+                    "type": "string",
+                    "example": "aug.of.hippo@live.roma"
+                },
+                "firstName": {
+                    "type": "string",
+                    "example": "Augustinus"
+                },
+                "lastName": {
+                    "type": "string",
+                    "example": "Hipponensis"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Fluent in Latin and Greek."
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "0434579344"
+                }
+            }
+        }
+    }
+}

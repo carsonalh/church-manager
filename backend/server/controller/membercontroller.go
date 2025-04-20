@@ -31,13 +31,22 @@ func SetupMemberController(router *gin.RouterGroup, store *store.MemberStore, co
 
 	router.GET("", controller.getMembers)
 	router.POST("", controller.postMember)
-	router.GET("/:id", controller.getMember)
-	router.PUT("/:id", controller.putMember)
-	router.DELETE("/:id", controller.deleteMember)
+	router.GET(":id", controller.getMember)
+	router.PUT(":id", controller.putMember)
+	router.DELETE(":id", controller.deleteMember)
 
 	return controller
 }
 
+// getMembers godoc
+// @Summary      Get index of members.
+// @Description  Invalid query parameters are coerced to their default values.
+// @Param        pageSize query int false "The size of the returned page. Maximum value is 500."
+// @Param        page     query int false "The page index (zero-based) to get. Pages that are out of range return emtpy lists."
+// @Accept       json
+// @Produce      json
+// @Success      200 {array} domain.MemberResponseDTO
+// @Router       /members [get]
 func (controller *MemberController) getMembers(c *gin.Context) {
 	var members []domain.Member
 	var err error
@@ -74,6 +83,14 @@ func (controller *MemberController) getMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, responseDTOs)
 }
 
+// getMember godoc
+// @Summary      Get a member
+// @Param        id path int true "The id of the member to get"
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} domain.MemberResponseDTO
+// @Failure      400 The id could not be parsed into an integer of appropriate size
+// @Router       /members/{id} [get]
 func (controller *MemberController) getMember(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -94,6 +111,14 @@ func (controller *MemberController) getMember(c *gin.Context) {
 	}
 }
 
+// postMember godoc
+// @Summary      Add a member
+// @Param        request body domain.MemberUpdateDTO true "Member to add"
+// @Accept       json
+// @Produce      json
+// @Success      201 {object} domain.MemberResponseDTO
+// @Failure      400 Invalid input data
+// @Router       /members [post]
 func (controller *MemberController) postMember(c *gin.Context) {
 	// Create and update are the same DTO
 	var createDto domain.MemberUpdateDTO
@@ -126,6 +151,14 @@ func (controller *MemberController) postMember(c *gin.Context) {
 	c.JSON(http.StatusCreated, member.ToResponseDTO())
 }
 
+// deleteMember godoc
+// @Summary      Delete a member
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Member ID"
+// @Success      200
+// @Failure      404 No member with the given id could be found to delete
+// @Router       /members/{id} [delete]
 func (controller *MemberController) deleteMember(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -147,20 +180,33 @@ func (controller *MemberController) deleteMember(c *gin.Context) {
 	}
 }
 
-func (c *MemberController) putMember(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
-	if err != nil {
-		ctx.String(http.StatusBadRequest, "invalid id \"%s\"\n", ctx.Param("id"))
-		return
-	}
+type putMember struct {
+	Id uint64 `uri:"id" binding:"required"`
+	domain.MemberUpdateDTO
+}
 
-	var updateDto domain.MemberUpdateDTO
-	if err := ctx.BindJSON(&updateDto); err != nil {
+// putMember godoc
+// @Summary      Update a member
+// @Param        request body domain.MemberUpdateDTO true "New data for the member. This operation replaces the member entirely."
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Member ID"
+// @Success      200 {object} domain.MemberResponseDTO
+// @Router       /members/{id} [put]
+func (c *MemberController) putMember(ctx *gin.Context) {
+	var request putMember
+
+	if err := ctx.BindUri(&request); err != nil {
 		ctx.String(http.StatusBadRequest, err.Error()+"\n")
 		return
 	}
 
-	member, err := c.store.Update(id, &updateDto)
+	if err := ctx.BindJSON(&request); err != nil {
+		ctx.String(http.StatusBadRequest, err.Error()+"\n")
+		return
+	}
+
+	member, err := c.store.Update(request.Id, &request.MemberUpdateDTO)
 	if err != nil {
 		log.Printf("error updating member: %v", err)
 		ctx.AbortWithStatus(http.StatusInternalServerError)

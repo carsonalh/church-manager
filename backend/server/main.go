@@ -4,14 +4,20 @@ import (
 	"context"
 	"log"
 
+	_ "github.com/carsonalh/churchmanagerbackend/docs"
 	"github.com/carsonalh/churchmanagerbackend/server/controller"
 	"github.com/carsonalh/churchmanagerbackend/server/migration"
 	"github.com/carsonalh/churchmanagerbackend/server/server"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Church Manager API
+// @description     API for the Church Manager backend. Same api as used by the frontend.
+
+// @host      localhost:8080
+// @BasePath  /
 func main() {
 	connectionString := "postgres://postgres:admin@localhost:5432/churchmanager"
 
@@ -31,6 +37,8 @@ func main() {
 			MaxPageSize:     500,
 		},
 	})
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	log.Fatal(router.Run("0.0.0.0:8080"))
 }

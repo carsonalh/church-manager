@@ -1,0 +1,159 @@
+basePath: /
+definitions:
+  MemberResponse:
+    properties:
+      emailAddress:
+        example: aug.of.hippo@live.roma
+        type: string
+      firstName:
+        example: Augustinus
+        type: string
+      id:
+        example: 81996
+        type: integer
+      lastName:
+        example: Hipponensis
+        type: string
+      notes:
+        example: Fluent in Latin and Greek.
+        type: string
+      phoneNumber:
+        example: "0434579344"
+        type: string
+    type: object
+  MemberUpdate:
+    properties:
+      emailAddress:
+        example: aug.of.hippo@live.roma
+        type: string
+      firstName:
+        example: Augustinus
+        type: string
+      lastName:
+        example: Hipponensis
+        type: string
+      notes:
+        example: Fluent in Latin and Greek.
+        type: string
+      phoneNumber:
+        example: "0434579344"
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for the Church Manager backend. Same api as used by the frontend.
+  title: Church Manager API
+paths:
+  /members:
+    get:
+      consumes:
+      - application/json
+      description: Invalid query parameters are coerced to their default values.
+      parameters:
+      - description: The size of the returned page. Maximum value is 500.
+        in: query
+        name: pageSize
+        type: integer
+      - description: The page index (zero-based) to get. Pages that are out of range
+          return emtpy lists.
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/MemberResponse'
+            type: array
+      summary: Get index of members.
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Member to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/MemberUpdate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/MemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: Invalid
+      summary: Add a member
+  /members/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Member ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            type: "No"
+      summary: Delete a member
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: The id of the member to get
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: The
+      summary: Get a member
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: New data for the member. This operation replaces the member entirely.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/MemberUpdate'
+      - description: Member ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MemberResponse'
+      summary: Update a member
+swagger: "2.0"
