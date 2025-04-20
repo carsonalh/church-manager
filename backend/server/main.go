@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/carsonalh/churchmanagerbackend/server/controller"
+	"github.com/carsonalh/churchmanagerbackend/server/migration"
+	"github.com/carsonalh/churchmanagerbackend/server/server"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,7 +15,7 @@ import (
 func main() {
 	connectionString := "postgres://postgres:admin@localhost:5432/churchmanager"
 
-	err := PerformMigration("migrations", connectionString)
+	err := migration.PerformMigration("migrations", connectionString)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -23,7 +25,7 @@ func main() {
 		log.Fatalf("failed to connect to postgres database: %v", err)
 	}
 
-	router := CreateServer(pool, ServerConfig{
+	router := server.CreateServer(pool, server.ServerConfig{
 		Members: controller.MemberControllerConfig{
 			DefaultPageSize: 200,
 			MaxPageSize:     500,

@@ -1,10 +1,12 @@
-package main
+package migration
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 // Creates a database connection, migrates the database to the most current
